@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TII Document Control Center</title>
+<link rel="manifest" href="./manifest.json" />
+<meta name="theme-color" content="#12281F" />
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js" defer></script>
+<style>
+:root{
+  --bg:#FAF7EF; --bg-card:#FFFFFF; --bg-card-2:#FFFDF7;
+  --ink:#15271E; --ink-soft:#12281F;
+  --sidebar-1:#123626; --sidebar-2:#0C2A1C;
+  --hairline:rgba(18,40,28,0.12); --hairline-soft:rgba(18,40,28,0.07);
+  --gold:#D9A536; --gold-bright:#F0C55E; --gold-deep:#B9862A;
+  --emerald:#12A971; --emerald-bright:#22D98F;
+  --amber:#F2994A; --steel:#3E8FD0; --crimson:#E4574B;
+  --muted:#6E7F73; --muted-2:#8FA69B;
+  font-family:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);height:100%;}
+h1,h2,h3{font-family:Georgia,'Fraunces',serif;margin:0;font-weight:700;letter-spacing:0.005em;}
+p{margin:0;}
+button{cursor:pointer;font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+::selection{background:var(--gold-bright);color:var(--ink-soft);}
+
+#app{display:flex;min-height:100vh;}
+
+/* sidebar */
+.sidebar{width:246px;flex-shrink:0;background:linear-gradient(180deg,var(--sidebar-1),var(--sidebar-2) 75%);
+  color:#EFF5EF;border-right:1px solid rgba(240,197,94,0.18);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 6px 18px;border-bottom:1px solid rgba(240,197,94,0.14);margin-bottom:14px;}
+.seal{width:38px;height:38px;border-radius:50%;border:1.6px solid var(--gold-bright);display:flex;align-items:center;justify-content:center;
+  font-family:Georgia,serif;font-weight:700;font-size:13px;color:var(--gold-bright);flex-shrink:0;
+  background:radial-gradient(circle at 30% 25%,rgba(240,197,94,0.25),transparent 70%);}
+.seal.small{width:30px;height:30px;font-size:11px;}
+.brand-title{font-family:Georgia,serif;font-size:13.5px;font-weight:700;line-height:1.25;}
+.brand-sub{font-size:10px;color:#B9CFC2;letter-spacing:0.05em;text-transform:uppercase;margin-top:2px;}
+.nav{display:flex;flex-direction:column;gap:3px;flex:1;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:9px;border:none;background:transparent;
+  color:#C3D6CB;font-size:13px;font-weight:600;text-align:left;}
+.nav-item:hover{background:rgba(240,197,94,0.08);color:#fff;}
+.nav-item.active{background:rgba(240,197,94,0.16);color:var(--gold-bright);box-shadow:inset 3px 0 0 var(--gold-bright);}
+.nav-ico{width:16px;text-align:center;}
+.sidebar-foot{padding-top:12px;border-top:1px solid rgba(240,197,94,0.14);display:flex;flex-direction:column;gap:8px;}
+.lockbtn,.gearbtn{width:100%;display:flex;align-items:center;gap:8px;justify-content:center;padding:9px 10px;border-radius:8px;
+  border:1px solid rgba(240,197,94,0.22);background:rgba(255,255,255,0.03);color:#C3D6CB;font-size:12px;font-weight:600;}
+.lockbtn:hover,.gearbtn:hover{color:var(--gold-bright);border-color:var(--gold-bright);}
+
+/* main */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.topbar{display:flex;align-items:center;gap:14px;padding:14px 26px;border-bottom:1px solid var(--hairline);background:var(--bg-card);}
+.status-pill{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;white-space:nowrap;}
+.status-online{background:rgba(18,169,113,0.14);color:var(--emerald);}
+.status-offline{background:rgba(228,87,75,0.14);color:var(--crimson);}
+.status-synced{background:rgba(18,169,113,0.14);color:#0A5C3E;}
+.status-notsynced{background:rgba(242,153,74,0.16);color:#8A5215;}
+.status-local{background:var(--hairline-soft);color:var(--muted);}
+.queue-badge{background:rgba(217,165,54,0.16);color:var(--gold-deep);font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;}
+.header-search{flex:1;max-width:420px;display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--hairline);
+  border-radius:10px;padding:9px 13px;color:var(--muted);}
+.header-search input{background:transparent;border:none;outline:none;color:var(--ink);font-size:13px;width:100%;}
+.lang-toggle,.gear-top{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--hairline);color:var(--gold-deep);
+  padding:9px 13px;border-radius:9px;font-size:12px;font-weight:700;}
+.lang-toggle:hover,.gear-top:hover{border-color:var(--gold);}
+
+.content{flex:1;overflow-y:auto;padding:26px 30px 50px;}
+.fade-in{animation:fadeIn 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.hero{margin-bottom:24px;}
+.hero-eyebrow{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold-deep);margin-bottom:8px;font-weight:700;}
+.hero h1{font-size:28px;color:var(--ink);margin-bottom:8px;}
+.hero p{color:var(--muted);font-size:14px;max-width:580px;line-height:1.55;}
+.page-head{margin-bottom:18px;}
+.page-head h1{font-size:22px;}
+.lead{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:640px;line-height:1.5;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--bg-card);border:1px solid var(--hairline);border-radius:14px;padding:16px;box-shadow:0 1px 2px rgba(18,40,28,0.04);}
+.stat-num{font-family:Georgia,serif;font-size:27px;font-weight:700;color:var(--ink);margin-top:6px;}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;}
+
+.two-col{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;margin-bottom:22px;}
+.panel{background:var(--bg-card);border:1px solid var(--hairline);border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(18,40,28,0.04);}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.panel-head h2{font-size:15px;}
+.link-btn{background:none;border:none;color:var(--gold-deep);font-size:12px;font-weight:700;}
+
+.level-row{display:grid;grid-template-columns:26px 1fr 3fr 24px;align-items:center;gap:10px;margin-bottom:12px;}
+.level-badge{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--lvl,var(--gold));color:var(--lvl,var(--gold));
+  font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-family:monospace;flex-shrink:0;background:#fff;}
+.level-name{font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.level-bar-track{height:7px;border-radius:4px;background:var(--hairline-soft);overflow:hidden;}
+.level-bar-fill{height:100%;border-radius:4px;}
+.level-count{font-size:12px;color:var(--muted);text-align:right;font-family:monospace;}
+
+.activity-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+.act-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;}
+.act-upload{background:rgba(18,169,113,0.14);color:var(--emerald);}
+.act-download{background:rgba(217,165,54,0.16);color:var(--gold-deep);}
+.activity-title{font-size:12.5px;color:var(--ink);}
+.activity-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+
+.plaque-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;}
+.plaque-grid.large{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));}
+.plaque{background:linear-gradient(155deg,#FFFDF6,#FFFFFF);border:1px solid var(--hairline);border-radius:14px;padding:16px;text-align:left;
+  color:var(--ink);display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 3px rgba(18,40,28,0.05);}
+.plaque:hover{border-color:var(--gold);transform:translateY(-2px);}
+.plaque-code{font-family:monospace;font-size:11px;color:var(--gold-deep);letter-spacing:0.06em;font-weight:700;}
+.plaque-name{font-family:Georgia,serif;font-size:15px;font-weight:700;line-height:1.25;}
+.plaque-count{font-size:11.5px;color:var(--muted);}
+.plaque-cta{margin-top:6px;font-size:11.5px;color:var(--emerald);font-weight:700;}
+
+.pill-filters{display:flex;gap:6px;flex-wrap:wrap;}
+.pill{padding:7px 13px;border-radius:999px;border:1px solid var(--hairline);background:var(--bg-card);color:var(--muted);font-size:12px;font-weight:700;}
+.pill.active{background:var(--gold);color:#2A1C05;border-color:var(--gold);}
+
+.plate{font-family:monospace;font-size:11px;background:linear-gradient(160deg,#FBF3DE,#F5E7C4);border:1px solid rgba(217,165,54,0.4);
+  color:#7A5A16;padding:4px 8px;border-radius:6px;display:inline-block;font-weight:700;}
+
+.doc-table{border:1px solid var(--hairline);border-radius:14px;overflow:hidden;background:var(--bg-card);}
+.doc-table-head,.doc-row{display:grid;grid-template-columns:1.4fr 2fr 1.1fr 1fr 100px;gap:12px;padding:12px 14px;align-items:center;}
+.doc-table-head.nodept,.doc-row.nodept{grid-template-columns:1.4fr 2.3fr 1fr 100px;}
+.doc-table-head{background:#FBF8F0;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:700;}
+.doc-row{border-top:1px solid var(--hairline-soft);font-size:13px;}
+.doc-row:hover{background:#FDFBF4;}
+.doc-title-cell{color:var(--ink);}
+.muted-cell{color:var(--muted);font-size:12px;}
+.tiny{font-size:10.5px;color:var(--muted-2);}
+.right{text-align:right;}
+.actions{display:flex;justify-content:flex-end;gap:4px;}
+.icon-btn{background:var(--bg-card);border:1px solid var(--hairline);color:var(--ink);width:28px;height:28px;border-radius:7px;
+  display:inline-flex;align-items:center;justify-content:center;font-size:13px;}
+.icon-btn:hover{border-color:var(--gold);color:var(--gold-deep);}
+.icon-btn.danger:hover{border-color:var(--crimson);color:var(--crimson);}
+
+.search-box-lg{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--hairline);border-radius:12px;
+  padding:13px 16px;margin-bottom:18px;color:var(--muted);}
+.search-box-lg input{flex:1;background:transparent;border:none;outline:none;color:var(--ink);font-size:14px;}
+.result-count{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.empty-state{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;color:var(--muted);padding:50px 20px;
+  border:1.5px dashed var(--hairline);border-radius:14px;background:var(--bg-card);}
+.empty-state h3{color:var(--ink);font-size:15px;}
+.empty-state p{font-size:12.5px;max-width:320px;}
+
+.form-card{background:var(--bg-card);border:1px solid var(--hairline);border-radius:14px;padding:22px;max-width:640px;
+  display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 3px rgba(18,40,28,0.05);}
+.form-card.narrow{max-width:380px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group label{font-size:12px;color:var(--muted);font-weight:700;}
+.req{color:var(--crimson);font-weight:700;}
+.form-group input,.form-group select,.form-group textarea{background:var(--bg);border:1px solid var(--hairline);border-radius:9px;
+  padding:10px 12px;color:var(--ink);font-size:13px;outline:none;resize:vertical;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--gold);}
+.hint{font-size:11px;color:var(--muted-2);}
+.form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:4px;}
+
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 17px;border-radius:9px;font-size:13px;font-weight:700;border:1px solid transparent;}
+.btn-primary{background:linear-gradient(160deg,var(--gold-bright),var(--gold));color:#2A1C05;}
+.btn-primary:hover{filter:brightness(1.05);}
+.btn-ghost{background:transparent;border-color:var(--hairline);color:var(--muted);}
+.btn-ghost:hover{color:var(--ink);border-color:var(--gold);}
+.btn-danger{background:var(--crimson);color:#fff;}
+
+.preview-box{background:#FFFBEF;border:1.5px dashed var(--gold);border-radius:11px;padding:13px 15px;display:flex;flex-direction:column;gap:6px;}
+.preview-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--gold-deep);font-weight:700;}
+.preview-hint{font-size:10.5px;color:var(--muted-2);}
+
+.success-banner{display:flex;align-items:center;gap:12px;background:rgba(18,169,113,0.1);border:1px solid var(--emerald);
+  color:#0A5C3E;padding:12px 14px;border-radius:12px;margin-bottom:16px;max-width:640px;}
+.success-banner strong{color:var(--ink);display:block;margin-bottom:4px;font-size:12.5px;}
+
+.hist-table{border:1px solid var(--hairline);border-radius:14px;overflow:hidden;background:var(--bg-card);}
+.hist-table-head,.hist-row{display:grid;grid-template-columns:150px 110px 2fr 1.2fr 90px;gap:12px;padding:11px 14px;align-items:center;}
+.hist-table-head{background:#FBF8F0;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:700;}
+.hist-row{border-top:1px solid var(--hairline-soft);font-size:12.5px;}
+.hist-row:hover{background:#FDFBF4;}
+.act-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;width:fit-content;}
+.act-chip.act-upload{background:rgba(18,169,113,0.14);color:#0A5C3E;}
+.act-chip.act-download{background:rgba(217,165,54,0.16);color:var(--gold-deep);}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(18,40,28,0.45);backdrop-filter:blur(2px);display:flex;align-items:center;
+  justify-content:center;z-index:200;padding:20px;}
+.modal{background:var(--bg-card);border:1px solid var(--hairline);border-radius:16px;padding:22px;width:100%;max-width:400px;animation:fadeIn 0.2s ease;}
+.modal.wide{max-width:520px;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.modal-head h3{font-size:15px;display:flex;align-items:center;gap:8px;}
+.modal-sub{font-size:12.5px;color:var(--muted);margin-bottom:16px;line-height:1.5;}
+.doc-summary{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--hairline);border-radius:9px;
+  padding:10px 12px;margin-bottom:14px;font-size:12.5px;}
+.modal form{display:flex;flex-direction:column;gap:12px;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:11px 18px;
+  border-radius:10px;font-size:12.5px;font-weight:700;z-index:300;box-shadow:0 10px 26px rgba(18,40,28,0.25);}
+.toast-success{background:var(--emerald);color:#fff;}
+.toast-error{background:var(--crimson);color:#fff;}
+.toast-info{background:var(--ink-soft);color:#F0C55E;}
+
+.brand-logo{width:38px;height:38px;object-fit:contain;flex-shrink:0;}
+.tiny-footer{position:fixed;bottom:2px;left:50%;transform:translateX(-50%);font-size:5px;line-height:1;color:rgba(0,0,0,0.55);
+  letter-spacing:0.01em;z-index:5;pointer-events:none;user-select:none;white-space:nowrap;}
+
+@media (max-width:860px){
+  #app{flex-direction:column;}
+  .sidebar{width:100%;height:auto;flex-direction:row;align-items:center;position:static;overflow-x:auto;}
+  .brand{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+  .nav{flex-direction:row;}
+  .sidebar-foot{border-top:none;padding-top:0;margin-left:auto;flex-direction:row;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .two-col{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .doc-table-head,.doc-row,.hist-table-head,.hist-row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============================== REFERENCE DATA ============================== */
+const DEPARTMENTS=[
+ {id:'management',code:'PJO',en:'PJO',id_:'PJO'},
+ {id:'engineering',code:'ENG',en:'Engineering',id_:'Engineering'},
+ {id:'hse',code:'OHSE',en:'HSE',id_:'HSE'},
+ {id:'training',code:'TND',en:'Training & Development',id_:'Training & Development'},
+ {id:'hauling',code:'HLG',en:'Hauling Operations',id_:'Hauling Operations'},
+ {id:'finance',code:'Proc',en:'Finance & Procurement',id_:'Finance & Procurement'},
+ {id:'maintenance',code:'MTC',en:'Maintenance Plant',id_:'Maintenance Plant'},
+ {id:'hrga',code:'HRGA',en:'HRGA',id_:'HRGA'},
+];
+const DOC_TYPES=[
+ {id:'manual',level:1,roman:'I',code:'MAN',en:'Manual / Handbook',id_:'Manual / Handbook'},
+ {id:'sop',level:2,roman:'II',code:'SOP',en:'SOP',id_:'SOP'},
+ {id:'prosedur',level:2,roman:'II',code:'PSD',en:'Procedure',id_:'Prosedur'},
+ {id:'ik',level:3,roman:'III',code:'IK',en:'Work Instruction (IK)',id_:'Instruksi Kerja (IK)'},
+ {id:'standar',level:3,roman:'III',code:'SP',en:'Standard Parameter',id_:'Standar Parameter'},
+ {id:'form',level:4,roman:'IV',code:'FRM',en:'Form',id_:'Form'},
+ {id:'jsea',level:4,roman:'IV',code:'JSEA',en:'JSEA',id_:'JSEA'},
+ {id:'ibpr',level:4,roman:'IV',code:'IBPR',en:'IBPR (HIRADC)',id_:'IBPR (HIRADC)'},
+ {id:'other',level:4,roman:'IV',code:'LN',en:'Other',id_:'Lainnya'},
+];
+const LEVEL_META={
+ 1:{roman:'I',color:'var(--gold)',en:'Level I · Manual',id_:'Level I · Manual'},
+ 2:{roman:'II',color:'var(--emerald)',en:'Level II · Procedure',id_:'Level II · Prosedur'},
+ 3:{roman:'III',color:'var(--amber)',en:'Level III · Work Instruction',id_:'Level III · Instruksi Kerja'},
+ 4:{roman:'IV',color:'var(--steel)',en:'Level IV · Form/JSEA/IBPR',id_:'Level IV · Form/JSEA/IBPR'},
+};
+const DEFAULT_KEYCODE='ADMIN2026';
+// Baked-in default backend URL so every device that opens this file connects
+// to the shared Google Apps Script + Sheets/Drive backend automatically —
+// no manual setup needed per device. Leave as '' to make every device start
+// in local-only mode instead (user can still paste a URL via the gear icon).
+const DEFAULT_API_URL='https://script.google.com/macros/s/AKfycbz-H2gGPgE6KX4JSwyQh5LAIw6t5ZbQ3FPCNTZJ0aCfQ2jYg4gTN64zwQFhdTKxJ3HZMQ/exec';
+const LOGO_DATA_URI='data:image/png;base64,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';
+
+const T={
+ en:{brand:'Document Control Center',brandSub:'TII · Integrated Registry',navDashboard:'Dashboard',navDepartments:'Departments',
+  navSearch:'Search',navUpload:'Upload Document',navHistory:'History Log',navAdmin:'Admin Panel',searchPlaceholder:'Search a document title…',
+  adminLocked:'Editor locked',adminUnlocked:'Editor unlocked',heroTitle:'Corporate Document Registry',
+  heroSub:'A single, controlled register for every SOP, JSEA, IBPR, Work Instruction and Manual across the organisation — works offline too.',
+  statTotal:'Total documents',statDepts:'Departments',statUploads:'Uploads (7 days)',statDownloads:'Downloads (7 days)',
+  byLevel:'Registry by level',byDept:'Registry by department',recentActivity:'Recent activity',viewAll:'View all',documents:'documents',
+  department:'Department',departments:'Departments',open:'Open register',backToDepartments:'Back to departments',allLevels:'All levels',
+  noDocuments:'No documents registered in this category yet.',docNumber:'Document number',title:'Title',uploadedBy:'Created by',
+  position:'Position',date:'Date',action:'Action',download:'Download',edit:'Edit',delete:'Delete',searchResults:'results for',
+  searchEmptyTitle:'Search the registry',searchEmptyBody:'Type a document title to find it across every department.',
+  searchNoMatch:'No document title matches your search.',uploadTitle:'Register a new document',
+  uploadSub:'Every submission requires the uploader\u2019s identity. The document number is generated automatically on submit — works offline and syncs later.',
+  fieldTitle:'Document title',fieldTitlePh:'e.g. Working at Height Safe Work Procedure',fieldDept:'Department',fieldDeptPh:'Select department',
+  fieldType:'Document type',fieldTypePh:'Select document type',fieldName:'Document creator full name',fieldNamePh:'e.g. Budi Santoso',
+  fieldPosition:'Position / Jabatan',fieldPositionPh:'e.g. HSE Officer',fieldDesc:'Description (optional)',fieldDescPh:'Short notes…',
+  fieldSeq:'Sequence number (3 digit, admin only)',fieldSeqHint:'Editing this changes the generated document number. Use with care — numbers should stay unique per department & document type.',
+  exportExcel:'Export to Excel (.xlsx)',exportUnavailable:'Excel export library not loaded yet — connect to the internet once to enable it.',
+  fieldFile:'Attachment (optional)',fieldFileHint:'Files are cached locally so they can be downloaded again offline.',
+  previewLabel:'Generated document number preview',previewHint:'Confirmed on submit',submit:'Submit & generate number',
+  submitting:'Registering…',required:'Required',uploadSuccessTitle:'Document registered',reset:'Clear form',historyTitle:'History Log',
+  historySub:'Every upload and every download is recorded — who, what, and when. Offline actions sync automatically once online.',
+  time:'Time',activity:'Activity',document:'Document',person:'Name',noHistory:'No activity recorded yet.',actUpload:'Upload',actDownload:'Download',
+  downloadModalTitle:'Confirm download',downloadModalSub:'Please identify yourself before downloading. This is recorded in the history log.',
+  confirmDownload:'Confirm & download',cancel:'Cancel',noFileAttached:'No file cached for offline download yet.',
+  adminModalTitle:'Editor access',adminModalSub:'Enter the editor keycode to edit or delete documents. Anyone can still upload without this code.',
+  keycode:'Keycode',unlock:'Unlock',wrongKeycode:'Incorrect keycode.',adminPanelTitle:'Admin Panel',adminPanelSub:'Manage editor access.',
+  currentKeycode:'Current keycode',newKeycode:'New keycode',changeKeycode:'Update keycode',keycodeUpdated:'Keycode updated.',
+  editDocTitle:'Edit document',editDocSub:'The document number and level stay fixed once generated.',save:'Save changes',
+  deleteConfirm:'Remove this document from the registry?',yesDelete:'Yes, delete',loading:'Loading registry…',all:'All',
+  langToggle:'ID',settingsTitle:'Apps Script connection',settingsSub:'This device is already connected to the shared TII backend by default — every device that opens this app syncs to the same Sheets & Drive automatically. Only change this if you need to point to a different backend, or clear it to work fully offline on this device only.',
+  apiUrlLabel:'Web App URL',saveSettings:'Save',online:'Online',offline:'Offline',queued:'queued',syncNow:'Sync now',
+  dataFromServer:'Synced with server',dataFromCache:'Showing cached data',fileCached:'cached for offline',
+  syncedWithServer:'Synced with Google Apps Script',notSynced:'Not synced — showing cached data',localOnly:'Local only (no Apps Script connected)',
+  lastSynced:'Last synced',never:'never',
+  },
+ id:{brand:'Pusat Kendali Dokumen',brandSub:'TII · Registrasi Terpadu',navDashboard:'Dashboard',navDepartments:'Departemen',
+  navSearch:'Pencarian',navUpload:'Unggah Dokumen',navHistory:'Riwayat',navAdmin:'Panel Admin',searchPlaceholder:'Cari judul dokumen…',
+  adminLocked:'Mode edit terkunci',adminUnlocked:'Mode edit aktif',heroTitle:'Registrasi Dokumen Perusahaan',
+  heroSub:'Satu register terkendali untuk seluruh SOP, JSEA, IBPR, Instruksi Kerja, dan Manual — tetap bisa diakses tanpa internet.',
+  statTotal:'Total dokumen',statDepts:'Departemen',statUploads:'Unggahan (7 hari)',statDownloads:'Unduhan (7 hari)',
+  byLevel:'Registrasi per level',byDept:'Registrasi per departemen',recentActivity:'Aktivitas terbaru',viewAll:'Lihat semua',documents:'dokumen',
+  department:'Departemen',departments:'Departemen',open:'Buka register',backToDepartments:'Kembali ke departemen',allLevels:'Semua level',
+  noDocuments:'Belum ada dokumen terdaftar pada kategori ini.',docNumber:'Nomor dokumen',title:'Judul',uploadedBy:'Dibuat oleh',
+  position:'Jabatan',date:'Tanggal',action:'Aksi',download:'Unduh',edit:'Ubah',delete:'Hapus',searchResults:'hasil untuk',
+  searchEmptyTitle:'Cari di dalam register',searchEmptyBody:'Ketik judul dokumen untuk menemukannya di seluruh departemen.',
+  searchNoMatch:'Tidak ada judul dokumen yang cocok.',uploadTitle:'Registrasi dokumen baru',
+  uploadSub:'Setiap pengunggahan wajib menyertakan identitas pengunggah. Nomor dokumen dibuat otomatis saat dikirim — tetap bisa dilakukan offline dan disinkron nanti.',
+  fieldTitle:'Judul dokumen',fieldTitlePh:'contoh: Prosedur Kerja Aman di Ketinggian',fieldDept:'Departemen',fieldDeptPh:'Pilih departemen',
+  fieldType:'Jenis dokumen',fieldTypePh:'Pilih jenis dokumen',fieldName:'Nama lengkap pembuat dokumen',fieldNamePh:'contoh: Budi Santoso',
+  fieldPosition:'Jabatan',fieldPositionPh:'contoh: HSE Officer',fieldDesc:'Keterangan (opsional)',fieldDescPh:'Catatan singkat…',
+  fieldSeq:'Nomor urut (3 digit, khusus admin)',fieldSeqHint:'Mengubah ini akan mengganti nomor dokumen yang dihasilkan. Gunakan dengan hati-hati — nomor sebaiknya tetap unik per departemen & jenis dokumen.',
+  exportExcel:'Ekspor ke Excel (.xlsx)',exportUnavailable:'Pustaka ekspor Excel belum termuat — sambungkan ke internet sekali untuk mengaktifkannya.',
+  fieldFile:'Lampiran file (opsional)',fieldFileHint:'File disimpan lokal agar bisa diunduh lagi walau offline.',
+  previewLabel:'Pratinjau nomor dokumen otomatis',previewHint:'Dikonfirmasi setelah dikirim',submit:'Kirim & buat nomor',
+  submitting:'Memproses…',required:'Wajib diisi',uploadSuccessTitle:'Dokumen berhasil didaftarkan',reset:'Bersihkan formulir',
+  historyTitle:'Riwayat Aktivitas',historySub:'Setiap unggahan dan unduhan tercatat — siapa, apa, dan kapan. Aksi offline otomatis sinkron saat online.',
+  time:'Waktu',activity:'Aktivitas',document:'Dokumen',person:'Nama',noHistory:'Belum ada aktivitas tercatat.',actUpload:'Unggah',actDownload:'Unduh',
+  downloadModalTitle:'Konfirmasi unduhan',downloadModalSub:'Silakan identifikasi diri Anda sebelum mengunduh. Tercatat dalam riwayat.',
+  confirmDownload:'Konfirmasi & unduh',cancel:'Batal',noFileAttached:'Belum ada file tersimpan lokal untuk diunduh offline.',
+  adminModalTitle:'Akses editor',adminModalSub:'Masukkan keycode editor untuk mengubah/menghapus dokumen. Semua orang tetap bisa unggah tanpa kode ini.',
+  keycode:'Keycode',unlock:'Buka kunci',wrongKeycode:'Keycode salah.',adminPanelTitle:'Panel Admin',adminPanelSub:'Kelola akses editor.',
+  currentKeycode:'Keycode saat ini',newKeycode:'Keycode baru',changeKeycode:'Perbarui keycode',keycodeUpdated:'Keycode diperbarui.',
+  editDocTitle:'Ubah dokumen',editDocSub:'Nomor dokumen dan level bersifat tetap setelah dibuat.',save:'Simpan perubahan',
+  deleteConfirm:'Hapus dokumen ini dari register?',yesDelete:'Ya, hapus',loading:'Memuat register…',all:'Semua',
+  langToggle:'EN',settingsTitle:'Koneksi Apps Script',settingsSub:'Perangkat ini sudah otomatis terhubung ke backend TII bersama — setiap perangkat yang membuka aplikasi ini akan tersinkron ke Sheets & Drive yang sama secara otomatis. Ubah kolom ini hanya jika ingin memakai backend lain, atau kosongkan untuk bekerja sepenuhnya offline khusus di perangkat ini saja.',
+  apiUrlLabel:'URL Web App',saveSettings:'Simpan',online:'Online',offline:'Offline',queued:'antre',syncNow:'Sinkron sekarang',
+  dataFromServer:'Tersinkron dengan server',dataFromCache:'Menampilkan data cache',fileCached:'tersimpan offline',
+  syncedWithServer:'Tersinkron dengan Google Apps Script',notSynced:'Belum tersinkron — menampilkan data cache',localOnly:'Hanya lokal (belum terhubung Apps Script)',
+  lastSynced:'Terakhir sinkron',never:'belum pernah',
+ },
+};
+
+/* ============================== HELPERS ============================== */
+const pad3=n=>String(n).padStart(3,'0');
+const deptById=id=>DEPARTMENTS.find(d=>d.id===id);
+const typeById=id=>DOC_TYPES.find(d=>d.id===id);
+const genNumber=(deptCode,type,seq)=>`TII/${type.roman}/${deptCode}-SCM/${type.code}/${pad3(seq)}`;
+function extractSeq(docNumber){
+  const m=String(docNumber||'').match(/\/(\d+)\s*$/);
+  return m?parseInt(m[1],10):0;
+}
+function nextSeqFor(deptId,docTypeId,excludeId){
+  let max=0;
+  state.documents.forEach(d=>{
+    if(d.deptId===deptId && d.docTypeId===docTypeId && d.id!==excludeId){
+      const n=extractSeq(d.docNumber);
+      if(n>max) max=n;
+    }
+  });
+  return max+1;
+}
+const fmtDate=(iso,lang)=>{try{return new Date(iso).toLocaleDateString(lang==='id'?'id-ID':'en-GB',{day:'2-digit',month:'short',year:'numeric'});}catch{return iso;}};
+const fmtDateTime=(iso,lang)=>{try{return new Date(iso).toLocaleString(lang==='id'?'id-ID':'en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch{return iso;}};
+const daysAgoISO=d=>new Date(Date.now()-d*86400000).toISOString();
+const uid=p=>`${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function seedDemo(){
+  const rows=[
+    ['management','manual','Corporate Governance Handbook','Manual Tata Kelola Perusahaan','Siti Rahayu','Corporate Secretary',10],
+    ['management','prosedur','Management Meeting Procedure','Prosedur Rapat Manajemen','Andi Wijaya','General Manager',9],
+    ['engineering','sop','Haul Road Maintenance SOP','SOP Pemeliharaan Jalan Tambang','Rizky Pratama','Engineering Supervisor',8],
+    ['engineering','form','Design Change Request Form','Form Permintaan Perubahan Desain','Rizky Pratama','Engineering Supervisor',6],
+    ['hse','jsea','Working at Height JSEA','JSEA Pekerjaan di Ketinggian','Dewi Anggraini','HSE Officer',5],
+    ['hse','ibpr','Workshop Area IBPR','IBPR Area Workshop','Dewi Anggraini','HSE Officer',4],
+    ['training','ik','New Employee Onboarding Work Instruction','Instruksi Kerja Onboarding Karyawan Baru','Fajar Nugroho','Training Coordinator',3],
+    ['hauling','sop','Dump Truck Operation SOP','SOP Pengoperasian Dump Truck','Bambang Setiawan','Hauling Supervisor',2],
+    ['finance','prosedur','Goods & Services Procurement Procedure','Prosedur Pengadaan Barang dan Jasa','Maria Christin','Procurement Lead',2],
+    ['maintenance','standar','Heavy Equipment Maintenance Standard Parameter','Standar Parameter Perawatan Alat Berat','Yusuf Hakim','Plant Maintenance Planner',1],
+    ['hrga','sop','Employee Leave Request SOP','SOP Pengajuan Cuti Karyawan','Nurul Fitria','HRGA Officer',1],
+  ];
+  const documents=[],counters={},history=[];
+  rows.forEach(([deptId,typeId,enT,idT,name,pos,age])=>{
+    const dept=deptById(deptId),type=typeById(typeId),key=`${deptId}__${typeId}`;
+    counters[key]=(counters[key]||0)+1;
+    const doc={id:uid('doc'),docNumber:genNumber(dept.code,type,counters[key]),title:enT,titleId:idT,deptId,docTypeId:typeId,
+      level:type.level,uploaderName:name,uploaderPosition:pos,description:'',hasFile:false,fileId:'',fileName:null,createdAt:daysAgoISO(age)};
+    documents.push(doc);
+    history.push({id:uid('h'),type:'upload',docId:doc.id,docNumber:doc.docNumber,docTitle:doc.title,personName:name,personPosition:pos,personDept:deptId,timestamp:doc.createdAt});
+  });
+  return {documents,counters,history};
+}
+
+/* ============================== INDEXEDDB ============================== */
+let __idbPromise=null;
+function idb(){
+  if(__idbPromise) return __idbPromise;
+  __idbPromise=new Promise((resolve,reject)=>{
+    const req=indexedDB.open('tii-doc-control-db',1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains('documents')) db.createObjectStore('documents',{keyPath:'id'});
+      if(!db.objectStoreNames.contains('history')) db.createObjectStore('history',{keyPath:'id'});
+      if(!db.objectStoreNames.contains('meta')) db.createObjectStore('meta',{keyPath:'key'});
+      if(!db.objectStoreNames.contains('queue')) db.createObjectStore('queue',{keyPath:'qid',autoIncrement:true});
+      if(!db.objectStoreNames.contains('files')) db.createObjectStore('files',{keyPath:'docId'});
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+  return __idbPromise;
+}
+async function storeGetAll(name){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction(name,'readonly');const r=t.objectStore(name).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function storePutAll(name,arr){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction(name,'readwrite');const st=t.objectStore(name);st.clear();(arr||[]).forEach(i=>st.put(i));t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function storePut(name,item){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction(name,'readwrite');t.objectStore(name).put(item);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function storeAdd(name,item){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction(name,'readwrite');const r=t.objectStore(name).add(item);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function storeDelete(name,key){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction(name,'readwrite');t.objectStore(name).delete(key);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+async function storeGet(name,key){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction(name,'readonly');const r=t.objectStore(name).get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function getMeta(key,fallback){try{const r=await storeGet('meta',key);return r?r.value:fallback;}catch{return fallback;}}
+async function setMeta(key,value){await storePut('meta',{key,value});}
+
+/* ============================== STATE ============================== */
+const state={
+  lang:'id', view:'dashboard', selectedDept:null, isAdmin:false,
+  documents:[], history:[], keycode:DEFAULT_KEYCODE, counters:{},
+  apiUrl:'', online:navigator.onLine, queueCount:0, dataSource:'', lastSyncedAt:null,
+  searchQuery:'', headerQuery:'', deptLevelFilter:'all',
+  modal:null, lastGenerated:null, toast:null, loading:true, uploadFile:null,
+};
+
+/* ============================== API LAYER ============================== */
+async function apiGet(action,params={}){
+  if(!state.apiUrl) throw new Error('no-url');
+  const qs=new URLSearchParams({action,...params}).toString();
+  const res=await fetch(`${state.apiUrl}?${qs}`);
+  if(!res.ok) throw new Error('bad-response');
+  return res.json();
+}
+async function apiPost(action,payload){
+  if(!state.apiUrl) throw new Error('no-url');
+  const res=await fetch(state.apiUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,payload})});
+  if(!res.ok) throw new Error('bad-response');
+  const data=await res.json();
+  if(data && data.error) throw new Error(data.error);
+  return data;
+}
+async function enqueue(action,payload){
+  await storeAdd('queue',{action,payload,ts:Date.now()});
+  state.queueCount=(await storeGetAll('queue')).length;
+}
+async function flushQueue(){
+  if(!state.apiUrl || !navigator.onLine) return;
+  const items=await storeGetAll('queue');
+  items.sort((a,b)=>a.qid-b.qid);
+  for(const item of items){
+    try{
+      await apiPost(item.action,item.payload);
+      await storeDelete('queue',item.qid);
+    }catch(e){ break; }
+  }
+  state.queueCount=(await storeGetAll('queue')).length;
+}
+
+async function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+/* ============================== DATA LOAD ============================== */
+async function loadData(){
+  const savedApiUrl=await getMeta('apiUrl',null);
+  if(savedApiUrl===null){
+    // First time this device opens the app — adopt the baked-in shared backend automatically.
+    state.apiUrl=DEFAULT_API_URL;
+    await setMeta('apiUrl',state.apiUrl);
+  } else {
+    state.apiUrl=savedApiUrl;
+  }
+  state.online=navigator.onLine;
+  state.lastSyncedAt=await getMeta('lastSyncedAt',null);
+  if(state.apiUrl && state.online){
+    try{
+      const data=await apiGet('bootstrap');
+      state.documents=(data.documents||[]).map(normalizeDoc);
+      state.history=data.history||[];
+      state.keycode=(data.config&&data.config.keycode)||DEFAULT_KEYCODE;
+      state.counters=(data.config&&data.config.counters)||{};
+      await storePutAll('documents',state.documents);
+      await storePutAll('history',state.history);
+      await setMeta('keycode',state.keycode);
+      await setMeta('counters',state.counters);
+      state.dataSource='server';
+      state.lastSyncedAt=new Date().toISOString();
+      await setMeta('lastSyncedAt',state.lastSyncedAt);
+    }catch(e){ await loadFromCache(); }
+  } else {
+    await loadFromCache();
+  }
+  state.queueCount=(await storeGetAll('queue')).length;
+}
+function normalizeDoc(d){
+  return {...d, hasFile: d.hasFile===true||d.hasFile==='TRUE'||d.hasFile==='true', level:Number(d.level)};
+}
+async function loadFromCache(){
+  state.documents=await storeGetAll('documents');
+  state.history=await storeGetAll('history');
+  state.keycode=await getMeta('keycode',DEFAULT_KEYCODE);
+  state.counters=await getMeta('counters',{});
+  if(state.documents.length===0 && state.history.length===0){
+    const seeded=seedDemo();
+    state.documents=seeded.documents; state.counters=seeded.counters; state.history=seeded.history;
+    await storePutAll('documents',state.documents);
+    await storePutAll('history',state.history);
+    await setMeta('counters',state.counters);
+  }
+  state.dataSource='cache';
+}
+
+/* ============================== MUTATIONS ============================== */
+async function addDocument(form,file){
+  const dept=deptById(form.deptId), type=typeById(form.docTypeId);
+  const seq=nextSeqFor(form.deptId,form.docTypeId);
+  const docNumber=genNumber(dept.code,type,seq);
+  const docId=uid('doc');
+  const doc={id:docId,docNumber,title:form.title,titleId:form.title,deptId:form.deptId,docTypeId:form.docTypeId,level:type.level,
+    uploaderName:form.uploaderName,uploaderPosition:form.uploaderPosition,description:form.description||'',
+    hasFile:!!file,fileId:'',fileName:file?file.name:null,createdAt:new Date().toISOString()};
+
+  state.documents=[doc,...state.documents];
+  await storePut('documents',doc);
+
+  const log={id:uid('h'),type:'upload',docId,docNumber,docTitle:form.title,personName:form.uploaderName,
+    personPosition:form.uploaderPosition,personDept:form.deptId,timestamp:doc.createdAt};
+  state.history=[log,...state.history];
+  await storePut('history',log);
+
+  if(file){
+    const base64=await fileToBase64(file);
+    await storePut('files',{docId,name:file.name,mimeType:file.type,base64});
+  }
+
+  if(state.apiUrl && state.online){
+    try{
+      await apiPost('addDocument',doc);
+      await apiPost('addHistory',log);
+      if(file){
+        const base64=await fileToBase64(file);
+        const up=await apiPost('uploadFile',{docId,name:file.name,mimeType:file.type,base64});
+        doc.fileId=up.fileId;
+        await apiPost('updateDocument',{id:docId,fileId:up.fileId,fileName:file.name,hasFile:'TRUE'});
+        await storePut('documents',doc);
+      }
+    }catch(e){
+      await enqueue('addDocument',doc);
+      await enqueue('addHistory',log);
+      if(file){ const base64=await fileToBase64(file); await enqueue('uploadFile',{docId,name:file.name,mimeType:file.type,base64}); }
+    }
+  } else {
+    await enqueue('addDocument',doc);
+    await enqueue('addHistory',log);
+    if(file){ const base64=await fileToBase64(file); await enqueue('uploadFile',{docId,name:file.name,mimeType:file.type,base64}); }
+  }
+  state.queueCount=(await storeGetAll('queue')).length;
+  return doc;
+}
+
+async function confirmDownload(doc,person){
+  const log={id:uid('h'),type:'download',docId:doc.id,docNumber:doc.docNumber,docTitle:doc.title,
+    personName:person.name,personPosition:person.position,personDept:person.deptId,timestamp:new Date().toISOString()};
+  state.history=[log,...state.history];
+  await storePut('history',log);
+  if(state.apiUrl && state.online){ try{ await apiPost('addHistory',log); }catch(e){ await enqueue('addHistory',log); } }
+  else { await enqueue('addHistory',log); }
+  state.queueCount=(await storeGetAll('queue')).length;
+
+  let fileData=await storeGet('files',doc.id);
+  if(!fileData && doc.hasFile && doc.fileId && state.apiUrl && state.online){
+    try{
+      const res=await apiGet('getFile',{fileId:doc.fileId});
+      fileData={docId:doc.id,name:res.name,mimeType:res.mimeType,base64:res.base64};
+      await storePut('files',fileData);
+    }catch(e){}
+  }
+  if(fileData){
+    const a=document.createElement('a');
+    a.href=fileData.base64; a.download=fileData.name||`${doc.docNumber.replace(/\//g,'-')}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    return true;
+  }
+  return false;
+}
+
+async function editDocument(updated){
+  state.documents=state.documents.map(d=>d.id===updated.id?{...d,...updated}:d);
+  await storePut('documents',state.documents.find(d=>d.id===updated.id));
+  if(state.apiUrl && state.online){ try{ await apiPost('updateDocument',updated); }catch(e){ await enqueue('updateDocument',updated); } }
+  else { await enqueue('updateDocument',updated); }
+  state.queueCount=(await storeGetAll('queue')).length;
+}
+async function deleteDocument(doc){
+  state.documents=state.documents.filter(d=>d.id!==doc.id);
+  await storeDelete('documents',doc.id);
+  if(state.apiUrl && state.online){ try{ await apiPost('deleteDocument',{id:doc.id}); }catch(e){ await enqueue('deleteDocument',{id:doc.id}); } }
+  else { await enqueue('deleteDocument',{id:doc.id}); }
+  state.queueCount=(await storeGetAll('queue')).length;
+}
+async function changeKeycode(current,next){
+  if(current!==state.keycode) return false;
+  state.keycode=next;
+  await setMeta('keycode',next);
+  if(state.apiUrl && state.online){ try{ await apiPost('updateKeycode',{current,next}); }catch(e){ await enqueue('updateKeycode',{current,next}); } }
+  else { await enqueue('updateKeycode',{current,next}); }
+  state.queueCount=(await storeGetAll('queue')).length;
+  return true;
+}
+async function saveApiUrl(url){
+  state.apiUrl=url.trim();
+  await setMeta('apiUrl',state.apiUrl);
+  await loadData();
+}
+
+/* ============================== TOAST ============================== */
+let toastTimer=null;
+function showToast(msg,type='success'){
+  state.toast={msg,type};
+  render();
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ state.toast=null; render(); },3200);
+}
+
+/* ============================== RENDER ============================== */
+function t(){ return T[state.lang]; }
+function deptCount(id){ return state.documents.filter(d=>d.deptId===id).length; }
+function levelCount(lvl){ return state.documents.filter(d=>d.level===lvl).length; }
+function sevenDayCount(type){
+  const cutoff=Date.now()-7*86400000;
+  return state.history.filter(l=>l.type===type && new Date(l.timestamp).getTime()>=cutoff).length;
+}
+function recentLogs(){ return [...state.history].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)); }
+function docTitleFor(d){ return state.lang==='id'?(d.titleId||d.title):d.title; }
+
+function levelBadge(level){
+  const m=LEVEL_META[level];
+  return `<span class="level-badge" style="--lvl:${m.color}">${m.roman}</span>`;
+}
+function plate(text){ return `<span class="plate">${esc(text)}</span>`; }
+
+function render(){
+  const T_=t();
+  document.getElementById('app').innerHTML=`
+    ${renderSidebar()}
+    <div class="main">
+      ${renderTopbar()}
+      <div class="content">${state.loading?loadingHtml():renderView()}</div>
+    </div>
+    ${state.toast?`<div class="toast toast-${state.toast.type}">${esc(state.toast.msg)}</div>`:''}
+    ${state.modal?renderModal():''}
+    <div class="tiny-footer">Created by someone who once accused can't do anything right by someone at HO</div>
+  `;
+  bindEvents();
+}
+function loadingHtml(){ return `<div style="text-align:center;padding:80px 0;color:var(--muted);font-size:13px;">${t().loading}</div>`; }
+
+function renderSidebar(){
+  const T_=t();
+  const items=[
+    ['dashboard','\u25A4',T_.navDashboard],['departments','\u2317',T_.navDepartments],['search','\u2315',T_.navSearch],
+    ['upload','\u2191',T_.navUpload],['history','\u23F1',T_.navHistory],
+  ];
+  return `
+  <aside class="sidebar">
+    <div class="brand"><img class="brand-logo" src="${LOGO_DATA_URI}" alt="TII" /><div><div class="brand-title">${T_.brand}</div><div class="brand-sub">${T_.brandSub}</div></div></div>
+    <nav class="nav">
+      ${items.map(([id,ico,label])=>`<button class="nav-item ${state.view===id?'active':''}" data-action="nav" data-view="${id}"><span class="nav-ico">${ico}</span><span>${label}</span></button>`).join('')}
+      ${state.isAdmin?`<button class="nav-item ${state.view==='admin'?'active':''}" data-action="nav" data-view="admin"><span class="nav-ico">\u2691</span><span>${T_.navAdmin}</span></button>`:''}
+    </nav>
+    <div class="sidebar-foot">
+      <button class="gearbtn" data-action="open-settings">\u2699 ${T_.apiUrlLabel}</button>
+      <button class="lockbtn" data-action="${state.isAdmin?'lock':'open-admin'}">${state.isAdmin?'\u{1F513}':'\u{1F512}'} ${state.isAdmin?T_.adminUnlocked:T_.adminLocked}</button>
+    </div>
+  </aside>`;
+}
+
+function renderSyncPill(){
+  const T_=t();
+  if(!state.apiUrl){
+    return `<span class="status-pill status-local" title="${T_.localOnly}">\u25CB ${T_.localOnly}</span>`;
+  }
+  const timeLabel=state.lastSyncedAt?fmtDateTime(state.lastSyncedAt,state.lang):T_.never;
+  if(state.dataSource==='server'){
+    return `<span class="status-pill status-synced" title="${T_.lastSynced}: ${timeLabel}">\u2713 ${T_.syncedWithServer}</span>`;
+  }
+  return `<span class="status-pill status-notsynced" title="${T_.lastSynced}: ${timeLabel}">\u26A0 ${T_.notSynced}</span>`;
+}
+
+function renderTopbar(){
+  const T_=t();
+  return `
+  <header class="topbar">
+    <span class="status-pill ${state.online?'status-online':'status-offline'}">${state.online?'\u25CF':'\u25CB'} ${state.online?T_.online:T_.offline}</span>
+    ${renderSyncPill()}
+    ${state.queueCount>0?`<button class="queue-badge" data-action="sync-now">${state.queueCount} ${T_.queued} \u21BB</button>`:''}
+    <form class="header-search" data-form="header-search">
+      <span>\u2315</span>
+      <input name="q" placeholder="${T_.searchPlaceholder}" value="${esc(state.headerQuery)}" />
+    </form>
+    <div style="flex:1"></div>
+    <button class="lang-toggle" data-action="toggle-lang">\u{1F310} ${T_.langToggle}</button>
+  </header>`;
+}
+
+function renderView(){
+  switch(state.view){
+    case 'dashboard': return renderDashboard();
+    case 'departments': return renderDepartments();
+    case 'deptDetail': return renderDeptDetail();
+    case 'search': return renderSearch();
+    case 'upload': return renderUpload();
+    case 'history': return renderHistory();
+    case 'admin': return state.isAdmin?renderAdmin():renderDashboard();
+    default: return renderDashboard();
+  }
+}
+
+function renderDashboard(){
+  const T_=t();
+  const maxLevel=Math.max(1,state.documents.length);
+  return `<div class="view fade-in">
+    <section class="hero">
+      <div class="hero-eyebrow">TII · ${new Date().getFullYear()}</div>
+      <h1>${T_.heroTitle}</h1><p>${T_.heroSub}</p>
+    </section>
+    <section class="stat-grid">
+      <div class="stat-card"><div class="tiny">\u2317</div><div class="stat-num">${state.documents.length}</div><div class="stat-label">${T_.statTotal}</div></div>
+      <div class="stat-card"><div class="tiny">\u25A4</div><div class="stat-num">${DEPARTMENTS.length}</div><div class="stat-label">${T_.statDepts}</div></div>
+      <div class="stat-card"><div class="tiny">\u2191</div><div class="stat-num">${sevenDayCount('upload')}</div><div class="stat-label">${T_.statUploads}</div></div>
+      <div class="stat-card"><div class="tiny">\u2193</div><div class="stat-num">${sevenDayCount('download')}</div><div class="stat-label">${T_.statDownloads}</div></div>
+    </section>
+    <div class="two-col">
+      <section class="panel"><div class="panel-head"><h2>${T_.byLevel}</h2></div>
+        ${[1,2,3,4].map(lvl=>{const m=LEVEL_META[lvl];const c=levelCount(lvl);
+          return `<div class="level-row"><span class="level-badge" style="--lvl:${m.color}">${m.roman}</span>
+            <span class="level-name">${state.lang==='id'?m.id_:m.en}</span>
+            <div class="level-bar-track"><div class="level-bar-fill" style="width:${(c/maxLevel)*100}%;background:${m.color}"></div></div>
+            <span class="level-count">${c}</span></div>`;}).join('')}
+      </section>
+      <section class="panel"><div class="panel-head"><h2>${T_.recentActivity}</h2><button class="link-btn" data-action="nav" data-view="history">${T_.viewAll} \u203A</button></div>
+        ${recentLogs().slice(0,6).map(l=>`<div class="activity-row"><span class="act-icon act-${l.type}">${l.type==='upload'?'\u2191':'\u2193'}</span>
+          <div><div class="activity-title">${esc(l.docTitle)}</div><div class="activity-meta">${esc(l.personName)} · ${fmtDateTime(l.timestamp,state.lang)}</div></div></div>`).join('')||`<div class="tiny">${T_.noHistory}</div>`}
+      </section>
+    </div>
+    <section class="panel"><div class="panel-head"><h2>${T_.byDept}</h2></div>
+      <div class="plaque-grid">${DEPARTMENTS.map(d=>`<button class="plaque" data-action="open-dept" data-id="${d.id}">
+        <div class="plaque-code">${d.code}</div><div class="plaque-name">${state.lang==='id'?d.id_:d.en}</div>
+        <div class="plaque-count">${deptCount(d.id)} ${T_.documents}</div></button>`).join('')}</div>
+    </section>
+  </div>`;
+}
+
+function renderDepartments(){
+  const T_=t();
+  return `<div class="view fade-in"><div class="page-head"><h1>${T_.navDepartments}</h1></div>
+    <div class="plaque-grid large">${DEPARTMENTS.map(d=>`<button class="plaque" data-action="open-dept" data-id="${d.id}">
+      <div class="plaque-code">${d.code}</div><div class="plaque-name">${state.lang==='id'?d.id_:d.en}</div>
+      <div class="plaque-count">${deptCount(d.id)} ${T_.documents}</div><div class="plaque-cta">${T_.open} \u203A</div></button>`).join('')}</div>
+  </div>`;
+}
+
+function renderDeptDetail(){
+  const T_=t(); const dept=deptById(state.selectedDept);
+  if(!dept) return renderDepartments();
+  let docs=state.documents.filter(d=>d.deptId===dept.id);
+  if(state.deptLevelFilter!=='all') docs=docs.filter(d=>d.level===Number(state.deptLevelFilter));
+  docs=docs.sort((a,b)=>a.level-b.level||new Date(b.createdAt)-new Date(a.createdAt));
+  return `<div class="view fade-in">
+    <button class="link-btn" data-action="nav" data-view="departments" style="margin-bottom:14px;">\u2039 ${T_.backToDepartments}</button>
+    <div class="page-head">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;"><div class="seal small" style="border-color:var(--gold-deep);color:var(--gold-deep)">${dept.code}</div>
+      <h1>${state.lang==='id'?dept.id_:dept.en}</h1></div>
+      <div class="pill-filters">
+        <button class="pill ${state.deptLevelFilter==='all'?'active':''}" data-action="dept-filter" data-level="all">${T_.allLevels}</button>
+        ${[1,2,3,4].map(l=>`<button class="pill ${state.deptLevelFilter===String(l)?'active':''}" data-action="dept-filter" data-level="${l}">${LEVEL_META[l].roman}</button>`).join('')}
+      </div>
+    </div>
+    ${docTable(docs,false)}
+  </div>`;
+}
+
+function renderSearch(){
+  const T_=t();
+  const q=state.searchQuery.trim().toLowerCase();
+  const results=q?state.documents.filter(d=>docTitleFor(d).toLowerCase().includes(q)||d.docNumber.toLowerCase().includes(q)):[];
+  return `<div class="view fade-in"><div class="page-head"><h1>${T_.navSearch}</h1></div>
+    <form class="search-box-lg" data-form="search-box"><span>\u2315</span><input name="q" autofocus placeholder="${T_.searchPlaceholder}" value="${esc(state.searchQuery)}" /></form>
+    ${q===''?`<div class="empty-state"><div style="font-size:26px;">\u2315</div><h3>${T_.searchEmptyTitle}</h3><p>${T_.searchEmptyBody}</p></div>`:
+      `<div class="result-count">${results.length} ${T_.searchResults} “${esc(state.searchQuery)}”</div>
+       ${results.length===0?`<div class="empty-state"><p>${T_.searchNoMatch}</p></div>`:docTable(results,true)}`}
+  </div>`;
+}
+
+function docTable(docs,showDept){
+  const T_=t();
+  if(docs.length===0) return `<div class="empty-state"><p>${T_.noDocuments}</p></div>`;
+  const cls=showDept?'':' nodept';
+  return `<div class="doc-table">
+    <div class="doc-table-head${cls}"><span>${T_.docNumber}</span><span>${T_.title}</span>${showDept?`<span>${T_.department}</span>`:''}<span>${T_.uploadedBy}</span><span>${T_.date}</span><span class="right">${T_.action}</span></div>
+    ${docs.map(doc=>`<div class="doc-row${cls}">
+      <span>${levelBadge(doc.level)} ${plate(doc.docNumber)}</span>
+      <span class="doc-title-cell">${esc(docTitleFor(doc))} ${doc.hasFile?'<span class="tiny">\u{1F4CE}</span>':''}</span>
+      ${showDept?`<span>${deptById(doc.deptId).code}</span>`:''}
+      <span class="muted-cell">${esc(doc.uploaderName)}<br><span class="tiny">${esc(doc.uploaderPosition)}</span></span>
+      <span class="muted-cell">${fmtDate(doc.createdAt,state.lang)}</span>
+      <span class="right actions">
+        <button class="icon-btn" title="${T_.download}" data-action="open-download" data-id="${doc.id}">\u2193</button>
+        ${state.isAdmin?`<button class="icon-btn" title="${T_.edit}" data-action="open-edit" data-id="${doc.id}">\u270E</button>
+        <button class="icon-btn danger" title="${T_.delete}" data-action="open-delete" data-id="${doc.id}">\u2715</button>`:''}
+      </span></div>`).join('')}
+  </div>`;
+}
+
+function renderUpload(){
+  const T_=t();
+  const dept=deptById(document.getElementById('f-dept')?.value||'');
+  return `<div class="view fade-in"><div class="page-head"><h1>${T_.uploadTitle}</h1></div><p class="lead">${T_.uploadSub}</p>
+    ${state.lastGenerated?`<div class="success-banner">\u2713 <div><strong>${T_.uploadSuccessTitle}</strong>${plate(state.lastGenerated.docNumber)}</div>
+      <button class="icon-btn" data-action="clear-last" style="margin-left:auto;">\u2715</button></div>`:''}
+    <form class="form-card" data-form="upload">
+      <div class="form-group"><label>${T_.fieldTitle}</label><input name="title" id="f-title" placeholder="${T_.fieldTitlePh}" /></div>
+      <div class="form-row">
+        <div class="form-group"><label>${T_.fieldDept}</label><select name="deptId" id="f-dept" data-action="preview-refresh">
+          <option value="">${T_.fieldDeptPh}</option>${DEPARTMENTS.map(d=>`<option value="${d.id}">${d.code} — ${state.lang==='id'?d.id_:d.en}</option>`).join('')}</select></div>
+        <div class="form-group"><label>${T_.fieldType}</label><select name="docTypeId" id="f-type" data-action="preview-refresh">
+          <option value="">${T_.fieldTypePh}</option>${DOC_TYPES.map(ty=>`<option value="${ty.id}">${state.lang==='id'?ty.id_:ty.en} (Lv.${ty.roman})</option>`).join('')}</select></div>
+      </div>
+      <div id="preview-slot"></div>
+      <div class="form-row">
+        <div class="form-group"><label>${T_.fieldName}</label><input name="uploaderName" placeholder="${T_.fieldNamePh}" /></div>
+        <div class="form-group"><label>${T_.fieldPosition}</label><input name="uploaderPosition" placeholder="${T_.fieldPositionPh}" /></div>
+      </div>
+      <div class="form-group"><label>${T_.fieldDesc}</label><textarea name="description" rows="3" placeholder="${T_.fieldDescPh}"></textarea></div>
+      <div class="form-group"><label>${T_.fieldFile}</label><input type="file" name="file" /><div class="hint">${T_.fieldFileHint}</div></div>
+      <div class="form-actions"><button type="reset" class="btn btn-ghost">${T_.reset}</button>
+        <button type="submit" class="btn btn-primary">+ ${T_.submit}</button></div>
+    </form>
+  </div>`;
+}
+
+function uploadPreview(){
+  const deptId=document.getElementById('f-dept')?.value;
+  const typeId=document.getElementById('f-type')?.value;
+  const slot=document.getElementById('preview-slot');
+  if(!slot) return;
+  const dept=deptById(deptId), type=typeById(typeId);
+  if(!dept||!type){ slot.innerHTML=''; return; }
+  const seq=nextSeqFor(deptId,typeId);
+  const number=genNumber(dept.code,type,seq);
+  slot.innerHTML=`<div class="preview-box"><div class="preview-label">${t().previewLabel}</div>${plate(number)}<div class="preview-hint">${t().previewHint}</div></div>`;
+}
+
+function renderHistory(){
+  const T_=t(); const logs=recentLogs();
+  return `<div class="view fade-in">
+    <div class="page-head" style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+      <div><h1>${T_.historyTitle}</h1></div>
+      <button class="btn btn-primary" data-action="export-excel">\u2913 ${T_.exportExcel}</button>
+    </div>
+    <p class="lead">${T_.historySub}</p>
+    ${logs.length===0?`<div class="empty-state"><p>${T_.noHistory}</p></div>`:`<div class="hist-table">
+      <div class="hist-table-head"><span>${T_.time}</span><span>${T_.activity}</span><span>${T_.document}</span><span>${T_.person}</span><span>${T_.department}</span></div>
+      ${logs.map(l=>`<div class="hist-row"><span class="tiny">${fmtDateTime(l.timestamp,state.lang)}</span>
+        <span class="act-chip act-${l.type}">${l.type==='upload'?'\u2191':'\u2193'} ${l.type==='upload'?T_.actUpload:T_.actDownload}</span>
+        <span>${plate(l.docNumber)}<div class="tiny">${esc(l.docTitle)}</div></span>
+        <span>${esc(l.personName)}<div class="tiny">${esc(l.personPosition)}</div></span>
+        <span>${(deptById(l.personDept)||{}).code||'—'}</span></div>`).join('')}
+    </div>`}
+  </div>`;
+}
+
+function renderAdmin(){
+  const T_=t();
+  return `<div class="view fade-in"><div class="page-head"><h1>${T_.adminPanelTitle}</h1></div><p class="lead">${T_.adminPanelSub}</p>
+    <form class="form-card narrow" data-form="change-keycode">
+      <div class="form-group"><label>${T_.currentKeycode}</label><input type="password" name="current" /></div>
+      <div class="form-group"><label>${T_.newKeycode}</label><input type="password" name="next" /></div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">\u{1F511} ${T_.changeKeycode}</button></div>
+    </form>
+    <div class="panel" style="margin-top:24px;"><div class="panel-head"><h2>${T_.navHistory==='Riwayat'?'Seluruh Register':'Full Registry'}</h2></div>
+      ${docTable(state.documents,true)}
+    </div>
+  </div>`;
+}
+
+/* ---------- modals ---------- */
+function renderModal(){
+  const T_=t(); const m=state.modal;
+  if(m.type==='settings'){
+    return `<div class="modal-overlay" data-overlay-close="1"><div class="modal">
+      <div class="modal-head"><h3>\u2699 ${T_.settingsTitle}</h3><button class="icon-btn" data-action="close-modal">\u2715</button></div>
+      <p class="modal-sub">${T_.settingsSub}</p>
+      <form data-form="settings"><div class="form-group"><label>${T_.apiUrlLabel}</label>
+        <input name="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(state.apiUrl)}" /></div>
+        <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">${T_.cancel}</button>
+        <button type="submit" class="btn btn-primary">${T_.saveSettings}</button></div></form>
+    </div></div>`;
+  }
+  if(m.type==='admin'){
+    return `<div class="modal-overlay" data-overlay-close="1"><div class="modal">
+      <div class="modal-head"><h3>\u{1F511} ${T_.adminModalTitle}</h3><button class="icon-btn" data-action="close-modal">\u2715</button></div>
+      <p class="modal-sub">${T_.adminModalSub}</p>
+      <form data-form="unlock"><div class="form-group"><label>${T_.keycode}</label><input type="password" name="code" autofocus /></div>
+        <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">${T_.cancel}</button>
+        <button type="submit" class="btn btn-primary">\u{1F513} ${T_.unlock}</button></div></form>
+    </div></div>`;
+  }
+  if(m.type==='download'){
+    const doc=m.doc;
+    return `<div class="modal-overlay" data-overlay-close="1"><div class="modal">
+      <div class="modal-head"><h3>\u2193 ${T_.downloadModalTitle}</h3><button class="icon-btn" data-action="close-modal">\u2715</button></div>
+      <p class="modal-sub">${T_.downloadModalSub}</p>
+      <div class="doc-summary">${plate(doc.docNumber)}<div>${esc(docTitleFor(doc))}</div></div>
+      <form data-form="download"><div class="form-group"><label>${T_.fieldName}</label><input name="name" autofocus /></div>
+        <div class="form-group"><label>${T_.fieldPosition}</label><input name="position" /></div>
+        <div class="form-group"><label>${T_.fieldDept}</label><select name="deptId"><option value="">${T_.fieldDeptPh}</option>
+          ${DEPARTMENTS.map(d=>`<option value="${d.id}">${d.code} — ${state.lang==='id'?d.id_:d.en}</option>`).join('')}</select></div>
+        <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">${T_.cancel}</button>
+        <button type="submit" class="btn btn-primary">\u2193 ${T_.confirmDownload}</button></div></form>
+    </div></div>`;
+  }
+  if(m.type==='edit'){
+    const doc=m.doc;
+    return `<div class="modal-overlay" data-overlay-close="1"><div class="modal wide">
+      <div class="modal-head"><h3>\u270E ${T_.editDocTitle}</h3><button class="icon-btn" data-action="close-modal">\u2715</button></div>
+      <p class="modal-sub">${T_.editDocSub}</p>
+      <div class="doc-summary">${levelBadge(doc.level)} ${plate(doc.docNumber)}</div>
+      <form data-form="edit" data-id="${doc.id}">
+        <div class="form-group"><label>${T_.fieldTitle}</label><input name="title" value="${esc(doc.title)}" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>${T_.fieldName}</label><input name="uploaderName" value="${esc(doc.uploaderName)}" /></div>
+          <div class="form-group"><label>${T_.fieldPosition}</label><input name="uploaderPosition" value="${esc(doc.uploaderPosition)}" /></div>
+        </div>
+        <div class="form-group"><label>${T_.fieldSeq}</label><input type="number" min="1" name="seq" value="${extractSeq(doc.docNumber)}" />
+          <div class="hint">${T_.fieldSeqHint}</div></div>
+        <div class="form-group"><label>${T_.fieldDesc}</label><textarea name="description" rows="3">${esc(doc.description||'')}</textarea></div>
+        <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">${T_.cancel}</button>
+        <button type="submit" class="btn btn-primary">\u2713 ${T_.save}</button></div>
+      </form>
+    </div></div>`;
+  }
+  if(m.type==='delete'){
+    const doc=m.doc;
+    return `<div class="modal-overlay" data-overlay-close="1"><div class="modal">
+      <div class="modal-head"><h3>\u2715 ${T_.delete}</h3><button class="icon-btn" data-action="close-modal">\u2715</button></div>
+      <p class="modal-sub">${T_.deleteConfirm}</p>
+      <div class="doc-summary">${plate(doc.docNumber)}<div>${esc(doc.title)}</div></div>
+      <div class="form-actions"><button class="btn btn-ghost" data-action="close-modal">${T_.cancel}</button>
+      <button class="btn btn-danger" data-action="confirm-delete" data-id="${doc.id}">\u2715 ${T_.yesDelete}</button></div>
+    </div></div>`;
+  }
+  return '';
+}
+
+/* ============================== EXPORT ============================== */
+function exportHistoryToExcel(){
+  if(typeof XLSX==='undefined'){ showToast(t().exportUnavailable,'error'); return; }
+  const T_=t();
+  const rows=recentLogs().map(l=>({
+    [T_.time]: fmtDateTime(l.timestamp,state.lang),
+    [T_.activity]: l.type==='upload'?T_.actUpload:T_.actDownload,
+    [T_.docNumber]: l.docNumber,
+    [T_.document]: l.docTitle,
+    [T_.person]: l.personName,
+    [T_.position]: l.personPosition,
+    [T_.department]: (deptById(l.personDept)||{}).code||'',
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:18},{wch:10},{wch:26},{wch:36},{wch:20},{wch:18},{wch:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'History');
+  const stamp=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`TII-History-Log-${stamp}.xlsx`);
+}
+
+/* ============================== EVENTS ============================== */
+function bindEvents(){
+  const app=document.getElementById('app');
+
+  app.querySelectorAll('[data-action]').forEach(el=>{
+    el.addEventListener('click',async (e)=>{
+      const action=el.dataset.action;
+      if(action==='nav'){ state.view=el.dataset.view; render(); }
+      else if(action==='open-dept'){ state.selectedDept=el.dataset.id; state.deptLevelFilter='all'; state.view='deptDetail'; render(); }
+      else if(action==='dept-filter'){ state.deptLevelFilter=el.dataset.level; render(); }
+      else if(action==='toggle-lang'){ state.lang=state.lang==='id'?'en':'id'; render(); }
+      else if(action==='open-settings'){ state.modal={type:'settings'}; render(); }
+      else if(action==='open-admin'){ state.modal={type:'admin'}; render(); }
+      else if(action==='lock'){ state.isAdmin=false; if(state.view==='admin') state.view='dashboard'; render(); }
+      else if(action==='close-modal'){ state.modal=null; render(); }
+      else if(action==='sync-now'){ showToast(t().syncNow,'info'); await flushQueue(); await loadData(); render(); }
+      else if(action==='clear-last'){ state.lastGenerated=null; render(); }
+      else if(action==='open-download'){ state.modal={type:'download',doc:state.documents.find(d=>d.id===el.dataset.id)}; render(); }
+      else if(action==='open-edit'){ state.modal={type:'edit',doc:state.documents.find(d=>d.id===el.dataset.id)}; render(); }
+      else if(action==='open-delete'){ state.modal={type:'delete',doc:state.documents.find(d=>d.id===el.dataset.id)}; render(); }
+      else if(action==='confirm-delete'){
+        const doc=state.documents.find(d=>d.id===el.dataset.id);
+        await deleteDocument(doc); state.modal=null; showToast(t().delete); render();
+      }
+      else if(action==='preview-refresh'){ uploadPreview(); }
+      else if(action==='export-excel'){ exportHistoryToExcel(); }
+    });
+    if(el.tagName==='SELECT' && el.dataset.action==='preview-refresh'){
+      el.addEventListener('change',uploadPreview);
+    }
+  });
+
+  app.querySelectorAll('.modal-overlay').forEach(ov=>{
+    ov.addEventListener('mousedown',(e)=>{ if(e.target===ov){ state.modal=null; render(); } });
+  });
+
+  app.querySelectorAll('[data-form]').forEach(form=>{
+    form.addEventListener('submit',async (e)=>{
+      e.preventDefault();
+      const type=form.dataset.form;
+      const fd=new FormData(form);
+      if(type==='header-search'){ state.headerQuery=fd.get('q')||''; state.searchQuery=state.headerQuery; state.view='search'; render(); }
+      else if(type==='search-box'){ state.searchQuery=fd.get('q')||''; render(); }
+      else if(type==='settings'){ await saveApiUrl(fd.get('url')||''); state.modal=null; showToast(t().saveSettings); render(); }
+      else if(type==='unlock'){
+        const code=fd.get('code')||'';
+        if(code===state.keycode){ state.isAdmin=true; state.modal=null; showToast(t().adminUnlocked); }
+        else { showToast(t().wrongKeycode,'error'); }
+        render();
+      }
+      else if(type==='upload'){
+        const form_={title:(fd.get('title')||'').trim(),deptId:fd.get('deptId')||'',docTypeId:fd.get('docTypeId')||'',
+          uploaderName:(fd.get('uploaderName')||'').trim(),uploaderPosition:(fd.get('uploaderPosition')||'').trim(),
+          description:(fd.get('description')||'').trim()};
+        if(!form_.title||!form_.deptId||!form_.docTypeId||!form_.uploaderName||!form_.uploaderPosition){
+          showToast(t().required,'error'); return;
+        }
+        const file=fd.get('file'); const realFile=(file&&file.size>0)?file:null;
+        const doc=await addDocument(form_,realFile);
+        state.lastGenerated=doc;
+        showToast(`${t().uploadSuccessTitle}: ${doc.docNumber}`);
+        render();
+      }
+      else if(type==='download'){
+        const doc=state.modal.doc;
+        const person={name:(fd.get('name')||'').trim(),position:(fd.get('position')||'').trim(),deptId:fd.get('deptId')||''};
+        if(!person.name||!person.position||!person.deptId){ showToast(t().required,'error'); return; }
+        const ok=await confirmDownload(doc,person);
+        state.modal=null;
+        showToast(ok?t().confirmDownload:t().noFileAttached, ok?'success':'error');
+        render();
+      }
+      else if(type==='edit'){
+        const doc=state.modal.doc;
+        const updated={id:doc.id,title:(fd.get('title')||'').trim(),titleId:(fd.get('title')||'').trim(),
+          uploaderName:(fd.get('uploaderName')||'').trim(),uploaderPosition:(fd.get('uploaderPosition')||'').trim(),
+          description:(fd.get('description')||'').trim()};
+        const seqVal=parseInt(fd.get('seq'),10);
+        if(seqVal && seqVal!==extractSeq(doc.docNumber)){
+          const dept=deptById(doc.deptId), type_=typeById(doc.docTypeId);
+          updated.docNumber=genNumber(dept.code,type_,seqVal);
+        }
+        await editDocument(updated);
+        state.modal=null; showToast(t().save); render();
+      }
+      else if(type==='change-keycode'){
+        const current=fd.get('current')||'', next=fd.get('next')||'';
+        if(!next.trim()) return;
+        const ok=await changeKeycode(current,next.trim());
+        showToast(ok?t().keycodeUpdated:t().wrongKeycode, ok?'success':'error');
+        form.reset(); render();
+      }
+    });
+  });
+
+  const uf=document.getElementById('f-dept'), ut=document.getElementById('f-type');
+  if(uf) uf.addEventListener('change',uploadPreview);
+  if(ut) ut.addEventListener('change',uploadPreview);
+}
+
+/* ============================== BOOT ============================== */
+window.addEventListener('online',async ()=>{ state.online=true; render(); await flushQueue(); await loadData(); render(); });
+window.addEventListener('offline',()=>{ state.online=false; render(); });
+
+(async function boot(){
+  state.loading=true; render();
+  await loadData();
+  state.loading=false;
+  render();
+  if(state.apiUrl && state.online) flushQueue().then(()=>loadData()).then(render);
+  if('serviceWorker' in navigator){
+    try{ await navigator.serviceWorker.register('./sw.js'); }catch(e){ /* preview sandbox may block this; ignore */ }
+  }
+})();
+</script>
+</body>
+</html>
